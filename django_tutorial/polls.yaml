@@ -42,7 +42,7 @@ spec:
       containers:
       - name: polls-app
         # Replace  with your project ID or use `make template`
-        image: gcr.io/<your-project-id>/polls
+        image: us-west1-docker.pkg.dev/test-gke-419405/test-gke-repo/polls
         # This setting makes nodes pull the docker image every time before
         # starting the pod. This is useful when debugging, but should be turned
         # off in production.
@@ -52,18 +52,18 @@ spec:
             - name: DATABASE_NAME
               valueFrom:
                 secretKeyRef:
-                  name: cloudsql
-                  key: database
-            - name: DATABASE_USER
+                  name: cloudsql-polls
+                  key: DATABASE_NAME
+            - name: DATABASE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: cloudsql
-                  key: username
+                  name: cloudsql-polls
+                  key: DATABASE_USERNAME
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: cloudsql
-                  key: password
+                  name: cloudsql-polls
+                  key: DATABASE_PASSWORD
             # [END cloudsql_secrets]
         ports:
         - containerPort: 8080
@@ -72,7 +72,7 @@ spec:
       - image: gcr.io/cloudsql-docker/gce-proxy:1.16
         name: cloudsql-proxy
         command: ["/cloud_sql_proxy", "--dir=/cloudsql",
-                  "-instances=<your-cloudsql-connection-string>=tcp:5432",
+                  "-instances=test-gke-419405:us-west1:django-postgres=tcp:5432",
                   "-credential_file=/secrets/cloudsql/credentials.json"]
         volumeMounts:
           - name: cloudsql-oauth-credentials
