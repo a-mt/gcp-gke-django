@@ -1,0 +1,11 @@
+Django==5.0.3
+setuptools==69.1.1
+sqlparse==0.4.4
+wheel==0.43.0
+psycopg2-binary~=2.9
+pycryptodome~=3.14
+django_cors_headers~=4.3
+djangorestframework-jsonapi~=6.1
+drf-yasg-json-api~=0.9
+coreapi~=2.3
+factory_boy~=3.3

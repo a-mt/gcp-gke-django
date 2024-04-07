@@ -1,0 +1,43 @@
+# Cache files #
+###############
+*.pyc
+*.pyo
+*.idea/
+.tox/
+
+# Virtualenv files #
+####################
+bin/*
+lib/*
+include/*
+doc/*
+src/*
+build/*
+man/*
+restkit/*
+
+# OS generated files #
+######################
+.DS_Store?
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+.Python
+*.*~
+
+# Project specific files #
+##########################
+.vscode/
+/*.sublime-workspace
+/*.sublime-project
+/docker_volumes/
+/docker-compose.override.yml
+/env_vars/local.env
+/env_vars/cloudsql*
+*.bak
+*.bak/*
+kubeconfig
+
+# GitKeep
+!/**/.gitkeep

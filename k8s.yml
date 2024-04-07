@@ -1,0 +1,154 @@
+# Copyright 2020 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+# This file configures the polls application . The frontend serves
+# public web traffic.
+
+# The bookshelf frontend replication controller ensures that at least 3
+# instances of the bookshelf app are running on the cluster.
+# For more info about Pods see:
+#   https://kubernetes.io/docs/concepts/workloads/pods/
+# For more info about Deployments:
+#   https://kubernetes.io/docs/user-guide/deployments/
+
+# [START kubernetes_deployment]
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+  labels:
+    app: webapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+
+      #+-------------------------------------
+      #| API
+      #+-------------------------------------
+
+      - name: api
+        # Replace  with your project ID or use `make template`
+        # image: us-west1-docker.pkg.dev/test-gke-419405/test-gke-repo/polls
+        image: us-west1-docker.pkg.dev/test-gke-419405/test-gke-repo/django-api-full:latest
+        imagePullPolicy: IfNotPresent
+        args:
+          - "gunicorn"
+          - "--bind=:8080"
+          - "--workers=3"
+          - "--worker-class=sync"
+          - "--log-level=info"
+          - "--log-file=-"
+          - "--forwarded-allow-ips=*"
+          - "--pid=gunicorn.pid"
+          - "--timeout=60"
+          - "--max-requests=1000"
+          - "wsgi:application"
+        env:
+          - name: ADDITIONAL_ALLOWED_HOSTS
+            value: "*"
+
+          - name: DATABASE_HOST
+            value: "127.0.0.1"
+
+          - name: DATABASE_PORT
+            value: "5432"
+
+          # [START cloudsql_secrets]
+          - name: DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: cloudsql
+                key: DATABASE_NAME
+
+          - name: DATABASE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: cloudsql
+                key: DATABASE_USERNAME
+
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: cloudsql
+                key: DATABASE_PASSWORD
+          # [END cloudsql_secrets]
+
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+
+      #+-------------------------------------
+      #| Cloud SQL Proxy (tunnels the connection to the database)
+      #+-------------------------------------
+
+      # [START proxy_container]
+      - image: gcr.io/cloudsql-docker/gce-proxy:1.16
+        name: cloudsql-proxy
+        command: ["/cloud_sql_proxy", "--dir=/cloudsql",
+                  "-instances=test-gke-419405:us-west1:django-postgres=tcp:5432",
+                  "-credential_file=/secrets/cloudsql/credentials.json"]
+        volumeMounts:
+          - name: cloudsql-oauth-credentials
+            mountPath: /secrets/cloudsql
+            readOnly: true
+
+          - name: ssl-certs
+            mountPath: /etc/ssl/certs
+
+          - name: cloudsql
+            mountPath: /cloudsql
+      # [END proxy_container]
+
+      # [START volumes]
+      volumes:
+        - name: cloudsql-oauth-credentials
+          secret:
+            secretName: cloudsql-oauth-credentials
+
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs
+
+        - name: cloudsql
+          emptyDir: {}
+      # [END volumes]  
+
+# [END kubernetes_deployment]
+
+---
+
+# [START service]
+# Create an external HTTP load balancer.
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+  labels:
+    app: webapp
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: webapp
+# [END service]

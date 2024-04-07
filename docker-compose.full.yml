@@ -1,0 +1,87 @@
+# docker-compose -f docker-compose.full.yml up
+version: '3'
+
+services:
+
+  # API and its relational db
+  #db:
+  #  image: postgres:15.3-bullseye
+  #  restart: unless-stopped
+  #  volumes:
+  #    - volume_db_data:/var/lib/postgresql/data
+  #    - volume_db_dump:/var/dump_pgsql
+  #  environment:
+  #    POSTGRES_USER: postgres-user-2
+  #    POSTGRES_PASSWORD: postgres-password-2
+  #    POSTGRES_DB: postgres-db-2
+  #  expose:
+  #    - "5432"
+  #  healthcheck:
+  #    test:
+  #      - CMD-SHELL
+  #      - pg_isready -U postgres-user-2 -d postgres-db-2
+  #    interval: 10s
+  #    timeout: 5s
+  #    retries: 10
+
+  # https://console.cloud.google.com/artifacts/docker/cloud-sql-connectors/us/gcr.io/cloud-sql-proxy
+  db:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.10.0-bullseye
+    restart: unless-stopped
+    env_file:
+      - ./env_vars/cloudsql.env
+    ports:
+      - "5432"
+    volumes:
+      - ./env_vars/cloudsql_creds.json:/secrets/credentials.json
+    entrypoint:
+      - sh
+      - -c
+    command:
+      - >
+        /cloud-sql-proxy
+        --address 0.0.0.0
+        --port 5432
+        --credentials-file /secrets/credentials.json
+        $$DATABASE_CONNECTION_NAME
+    healthcheck:
+      disable: true
+
+  # Gunicorn settings: https://docs.gunicorn.org/en/latest/settings.html
+  api:
+    image: django-api-full
+    build:
+      context: .
+      dockerfile: docker.full.Dockerfile
+    restart: "no"
+    depends_on:
+      - db
+    ports:
+      - 8080:8080
+    env_file:
+      - ./env_vars/cloudsql.env
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    command: >
+      gunicorn
+      --bind :8080
+      --workers=3
+      --worker-class=sync
+      --log-level=info
+      --log-file=-
+      --forwarded-allow-ips=*
+      --pid=gunicorn.pid
+      --timeout 60
+      --max-requests 1000
+      wsgi:application
+    platform: linux/amd64
+    volumes:
+      - volume_logs_django:/var/log/django:delegated
+
+# https://docs.docker.com/compose/compose-file/compose-file-v3/#volume-configuration-reference
+# Volumes are created with "UID:GID" permissions
+volumes:
+  volume_db_data:
+  volume_db_dump:
+  volume_logs_django:

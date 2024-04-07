@@ -1,0 +1,62 @@
+version: '3'
+
+services:
+
+  # API and its relational db
+  db:
+    image: postgres:15.3-bullseye
+    restart: unless-stopped
+    volumes:
+      - ./docker_volumes/postgresql/data:/var/lib/postgresql/data
+      - ./docker_volumes/dump_pgsql:/var/dump_pgsql
+    environment:
+      POSTGRES_USER: postgres-user
+      POSTGRES_PASSWORD: postgres-password
+      POSTGRES_DB: postgres-db
+    expose:
+      - "5432"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres-user -d postgres-db
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker.base.Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./www:/srv/www:delegated
+    env_file:
+      - ./env_vars/dev.env
+      - ./env_vars/local.env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    command:
+      - ./manage.py
+      - runserver
+      - 0.0.0.0:8080
+    platform: linux/amd64
+    healthcheck:
+      disable: true
+
+  # SMTP
+  # webapp to read mails on port 1080
+  maildev:
+    user: "0:0"
+    image: maildev/maildev:2.0.5
+    restart: unless-stopped
+    volumes:
+      - ./docker_volumes/mails:/tmp/maildev-1
+    environment:
+      - MAILDEV_MAIL_DIRECTORY=/tmp/maildev-1
+    expose:
+      - "1025"
+    ports:
+      - "1080:1080"

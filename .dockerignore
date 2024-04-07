@@ -1,0 +1,53 @@
+# Cache files #
+###############
+**/*.pyc
+**/*.pyo
+**/*.pyo
+**/*.idea/
+.tox/
+ansible
+
+# Virtualenv files #
+####################
+bin/*
+lib/*
+include/*
+doc/*
+src/*
+build/*
+man/*
+restkit/*
+
+# macOS files #
+####################
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows files #
+####################
+Thumbs.db
+ehthumbs.db
+
+# SublimeText files #
+##########################
+*.sublime-workspace
+*.sublime-project
+
+# Project specific files #
+##########################
+docs
+design
+.gitlab/
+.vscode
+.sass-cache
+.gitignore
+.git/
+docker_volumes/
+node_modules/
+www/node_modules/
+docker-compose.yml
+docker-compose.*.yml
+www/static
+/env_vars/local.env
+/docker-compose.override.yml
