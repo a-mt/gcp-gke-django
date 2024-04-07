@@ -140,7 +140,7 @@
   ``` bash
   $ cd ..
   $ docker-compose -f docker-compose.full.yml build
-  $ IMAGE_NAME=django-api-full
+  $ IMAGE_NAME=django
   ```
 
 * Push your image
@@ -153,6 +153,12 @@
 ## Access Kubernetes locally
 
 * Retrieve the credentials
+
+  ``` bash
+  $ terraform output -raw kubernetes_kubeconfig > kubeconfig
+  ```
+
+  Or
 
   ``` bash
   $ chmod + x get-kubeconfig.sh
@@ -174,6 +180,23 @@
 
 ## Test a deployment
 
+* Create values.yaml
+
+  ``` bash
+  $ cd infra
+
+  $ LOAD_BALANCER_IP=$(terraform output -raw kubernetes_ingress_ipv4_address)
+  $ DATABASE_CONNECTION_NAME=$(terraform output -raw postgres_connection_name)
+
+  $ cat <<EOT > ../k8s/values.yaml
+  loadBalancerIP: $LOAD_BALANCER_IP
+  databaseConnectionName: $DATABASE_CONNECTION_NAME
+  image: $DOCKER_REPOSITORY/django:latest
+  EOT
+
+  $ cd ..
+  ```
+
 * Create secrets
 
   ``` bash
@@ -184,7 +207,13 @@
 * Deploy the app
 
   ``` bash
-  $ kubectl apply -f k8s.yml
+  $ helm upgrade django ./k8s --install --values=./k8s/values.yaml
+  NAME: django
+  LAST DEPLOYED: Sun Apr  7 16:21:08 2024
+  NAMESPACE: default
+  STATUS: deployed
+  REVISION: 1
+  TEST SUITE: None
 
   $ kubectl get pod -w
   NAME                      READY   STATUS    RESTARTS   AGE
@@ -192,12 +221,29 @@
   webapp-5574bd84b6-j7nmr   2/2     Running   0          5s
   webapp-5574bd84b6-jrqx8   2/2     Running   0          9s
 
-  $ kubectl get svc
-  NAME         TYPE           CLUSTER-IP    EXTERNAL-IP      PORT(S)        AGE
-  kubernetes   ClusterIP      10.65.0.1     <none>           443/TCP        25m
-  webapp       LoadBalancer   10.65.5.170   35.233.188.164   80:30725/TCP   3m28s
+  $ $ kubectl get svc -w
+  NAME         TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+  kubernetes   ClusterIP      10.76.176.1    <none>        443/TCP        69s
+  webapp       LoadBalancer   10.76.182.49   <pending>     80:31029/TCP   18s
+  webapp       LoadBalancer   10.76.182.49   35.185.194.193   80:31029/TCP   40s
 
-  $ curl 35.233.188.164
+  $ curl 35.185.194.193
+  {"env": "prod", "debug": false}
+  ```
+
+* Check the DNS is working
+
+  ``` bash
+  $ ping api.a-mt.shop
+  PING api.a-mt.shop (35.185.194.193) 56(84) bytes of data.
+  64 bytes from 193.194.185.35.bc.googleusercontent.com (35.185.194.193): icmp_seq=1 ttl=101 time=276 ms
+  64 bytes from 193.194.185.35.bc.googleusercontent.com (35.185.194.193): icmp_seq=2 ttl=101 time=196 ms
+  ^C
+  --- api.a-mt.shop ping statistics ---
+  2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+  rtt min/avg/max/mdev = 195.542/235.736/275.931/40.194 ms
+
+  $ curl api.a-mt.shop
   {"env": "prod", "debug": false}
   ```
 

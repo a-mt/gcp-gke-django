@@ -23,11 +23,11 @@ resource "google_dns_record_set" "website" {
   managed_zone = data.google_dns_managed_zone.dns_zone.name
 }
 
-# https://www.willianantunes.com/blog/2021/05/gke-ingress-how-to-configure-ipv4-and-ipv6-addresses/
-#resource "google_compute_managed_ssl_certificate" "tls_certs" {
-#  name = "gke-certs"
+# SSL certs
+resource "google_compute_managed_ssl_certificate" "tls_certs" {
+  name = "${var.zone_name}-certs"
 
-#  managed {
-#    domains = local.domains
-#  }
-#}
+  managed {
+    domains = local.domains
+  }
+}

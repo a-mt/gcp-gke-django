@@ -30,11 +30,11 @@ output "kubernetes_cluster_ip" {
 
 # IP
 output "kubernetes_ingress_ipv4_name" {
-  value       = "${google_compute_global_address.gke_ingress_ipv4.name}"
+  value       = "${google_compute_address.gke_ingress_ipv4.name}"
   sensitive   = false
 }
 
 output "kubernetes_ingress_ipv4_address" {
-  value       = "${google_compute_global_address.gke_ingress_ipv4.address}"
+  value       = "${google_compute_address.gke_ingress_ipv4.address}"
   sensitive   = false
 }

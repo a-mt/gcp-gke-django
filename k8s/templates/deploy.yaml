@@ -48,7 +48,7 @@ spec:
       - name: api
         # Replace  with your project ID or use `make template`
         # image: us-west1-docker.pkg.dev/test-gke-419405/test-gke-repo/polls
-        image: us-west1-docker.pkg.dev/test-gke-419405/test-gke-repo/django-api-full:latest
+        image: {{ .Values.image }}
         imagePullPolicy: IfNotPresent
         args:
           - "gunicorn"
@@ -104,7 +104,7 @@ spec:
       - image: gcr.io/cloudsql-docker/gce-proxy:1.16
         name: cloudsql-proxy
         command: ["/cloud_sql_proxy", "--dir=/cloudsql",
-                  "-instances=test-gke-419405:us-west1:django-postgres=tcp:5432",
+                  "-instances={{ .Values.databaseConnectionName }}=tcp:5432",
                   "-credential_file=/secrets/cloudsql/credentials.json"]
         volumeMounts:
           - name: cloudsql-oauth-credentials
@@ -133,22 +133,3 @@ spec:
       # [END volumes]  
 
 # [END kubernetes_deployment]
-
----
-
-# [START service]
-# Create an external HTTP load balancer.
-apiVersion: v1
-kind: Service
-metadata:
-  name: webapp
-  labels:
-    app: webapp
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-    targetPort: 8080
-  selector:
-    app: webapp
-# [END service]

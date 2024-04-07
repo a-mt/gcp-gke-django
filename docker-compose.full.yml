@@ -49,7 +49,7 @@ services:
 
   # Gunicorn settings: https://docs.gunicorn.org/en/latest/settings.html
   api:
-    image: django-api-full
+    image: django
     build:
       context: .
       dockerfile: docker.full.Dockerfile

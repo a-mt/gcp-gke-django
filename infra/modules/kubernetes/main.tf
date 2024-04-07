@@ -101,18 +101,9 @@ resource "google_compute_firewall" "nodeports" {
 #| INGRESS STATIC IP
 #+-------------------------------------
 
-# Reserve a global static external IP address
-#resource "google_compute_global_address" "external_ip" {
-#  name = var.static_ip_name
-#}
-
-resource "google_compute_global_address" "gke_ingress_ipv6" {
-  name         = "external-address-gke-ingress-ipv6"
-  ip_version   = "IPV6"
-  address_type = "EXTERNAL"
-}
-
-resource "google_compute_global_address" "gke_ingress_ipv4" {
+# Reserve a (regional) static external IP address
+# use google_compute_global_address for PREMIUM
+resource "google_compute_address" "gke_ingress_ipv4" {
   name         = "external-address-gke-ingress-ipv4"
   ip_version   = "IPV4"
   address_type = "EXTERNAL"

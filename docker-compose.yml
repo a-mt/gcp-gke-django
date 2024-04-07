@@ -24,6 +24,7 @@ services:
       retries: 10
 
   api:
+    image: django-base
     build:
       context: .
       dockerfile: docker.base.Dockerfile

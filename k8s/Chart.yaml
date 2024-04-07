@@ -1,0 +1,4 @@
+apiVersion: v1
+name: Django
+version: 1.0.0
+description: Deploy Django app
