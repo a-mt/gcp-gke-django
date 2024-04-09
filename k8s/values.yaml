@@ -1,3 +1,6 @@
-loadBalancerIP: 35.185.194.193
-databaseConnectionName: test-gke-419405:us-west1:django-postgres
-image: us-west1-docker.pkg.dev/test-gke-419405/test-gke-repo/django:latest
+loadBalancerGlobalIPAddress: 34.36.76.231
+loadBalancerGlobalIPName: test-gke-ingress-global-ipv4
+loadBalancerRootDomain: a-mt.shop
+loadBalancerManagedCerticateMap: test-gke-ingress-map-entry
+databaseConnectionName: test-django-419804:us-west1:django-postgres
+image: us-west1-docker.pkg.dev/test-django-419804/test-gke-repo/django:latest

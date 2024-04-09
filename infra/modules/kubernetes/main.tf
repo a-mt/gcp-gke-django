@@ -62,6 +62,11 @@ resource "google_container_cluster" "primary" {
       "gke-${local.envname}-node",
     ]
   }
+
+  # Add the gateway CRD
+  gateway_api_config {
+    channel = "CHANNEL_STANDARD"
+  }
 }
 
 # Will help generate the kubeconfig file (see outputs)
@@ -80,7 +85,7 @@ resource "google_container_cluster" "primary" {
 
 # Add firewall rules
 resource "google_compute_firewall" "nodeports" {
-  name    = "${google_container_cluster.primary.name}-nodeports-range"
+  name    = "${var.cluster_name}-nodeports-range"
   network = "default"
 
   # ports 30000-32767 for potential kubernetes node ports
@@ -98,13 +103,28 @@ resource "google_compute_firewall" "nodeports" {
 }
 
 #+-------------------------------------
-#| INGRESS STATIC IP
+#| INGRESS SETTINGS
 #+-------------------------------------
 
-# Reserve a (regional) static external IP address
-# use google_compute_global_address for PREMIUM
-resource "google_compute_address" "gke_ingress_ipv4" {
-  name         = "external-address-gke-ingress-ipv4"
-  ip_version   = "IPV4"
-  address_type = "EXTERNAL"
+# Reserve a static external IP address
+resource "google_compute_global_address" "gke_ingress_ipv4" {
+  name          = "${var.cluster_name}-ingress-global-ipv4"
+  ip_version    = "IPV4"
+  address_type  = "EXTERNAL"
+}
+
+#resource "google_compute_address" "gke_ingress_ipv4" {
+#  name         = "gke-ingress-regional-ipv4"
+#  ip_version   = "IPV4"
+#  address_type = "EXTERNAL"
+#}
+
+# Create a certificate map (our DNS module will add SSL certificate / hostname associations)
+# > gcloud certificate-manager maps create demo-example-com-map
+resource "google_certificate_manager_certificate_map" "gke_ingress_certificate_map" {
+  name   = "${var.cluster_name}-ingress-map-entry"
+
+  labels = {
+    terraform = true
+  }
 }

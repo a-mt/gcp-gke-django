@@ -1,0 +1,44 @@
+---
+# Create a NodePort
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+  labels:
+    app: webapp
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: webapp
+---
+# Create SSL certificates using a HTTP challenge
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: webapp-global-managed-certs
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: {{ .Values.loadBalancerGlobalIPName }}
+spec:
+  domains:
+    - api.{{ .Values.loadBalancerRootDomain }}
+---
+# Create an external Ingress Load Balancer
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: {{ .Values.loadBalancerGlobalIPName }}
+    networking.gke.io/managed-certificates: webapp-global-managed-certs
+    ingressClassName: gce
+spec:
+  defaultBackend:
+    service:
+      name: webapp
+      port:
+        number: 80

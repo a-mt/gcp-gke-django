@@ -5,7 +5,7 @@ terraform {
     organization = "a-mt"
 
     workspaces {
-      name = "test-gke-django"
+      name = "test-django"
     }
   }
 }

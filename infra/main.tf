@@ -26,7 +26,8 @@ module "docker_registry" {
 
 # Create a DNS entry for our ingress
 module "dns" {
-  source            = "./modules/dns"
-  target_ip         = module.kubernetes.kubernetes_ingress_ipv4_address
-  zone_name         = var.dns_zone_name
+  source                = "./modules/dns"
+  ingress_ip            = module.kubernetes.kubernetes_ingress_global_ipv4_address
+  ingress_cert_map_name = module.kubernetes.kubernetes_ingress_certificate_map_name
+  dns_zone_name         = var.dns_zone_name
 }

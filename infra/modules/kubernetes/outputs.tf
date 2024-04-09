@@ -29,12 +29,30 @@ output "kubernetes_cluster_ip" {
 }
 
 # IP
-output "kubernetes_ingress_ipv4_name" {
-  value       = "${google_compute_address.gke_ingress_ipv4.name}"
+#output "kubernetes_ingress_regional_ipv4_name" {
+#  value       = "${google_compute_address.gke_ingress_ipv4.name}"
+#  sensitive   = false
+#}
+#
+#output "kubernetes_ingress_regional_ipv4_address" {
+#  value       = "${google_compute_address.gke_ingress_ipv4.address}"
+#  sensitive   = false
+#}
+
+output "kubernetes_ingress_global_ipv4_name" {
+  description = "Static IP name"
+  value       = "${google_compute_global_address.gke_ingress_ipv4.name}"
   sensitive   = false
 }
 
-output "kubernetes_ingress_ipv4_address" {
-  value       = "${google_compute_address.gke_ingress_ipv4.address}"
+output "kubernetes_ingress_global_ipv4_address" {
+  description = "Static IP address"
+  value       = "${google_compute_global_address.gke_ingress_ipv4.address}"
+  sensitive   = false
+}
+
+output "kubernetes_ingress_certificate_map_name" {
+  description = "Certificate map name (in Google Certificate Manager)"
+  value       = google_certificate_manager_certificate_map.gke_ingress_certificate_map.name
   sensitive   = false
 }

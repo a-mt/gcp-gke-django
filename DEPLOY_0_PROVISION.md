@@ -36,22 +36,21 @@
     ```
 
   - Cloud DNS:
+    - Cloud DNS
+    - Certificate Manager
 
     ``` bash
-    $ gcloud services enable dns.googleapis.com
+    $ gcloud services enable dns.googleapis.com certificatemanager.googleapis.com
     ```
 
 ## Setup your domain name
 
-* Buy your domain name on namecheap or other
-
-* Go to [Networking: Network services > Cloud DNS](https://console.cloud.google.com/net-services/dns/zones) > create zone
+* In the Google cloud console, go to [Networking: Network services > Cloud DNS](https://console.cloud.google.com/net-services/dns/zones) > create zone
 
   Zone name: gke-zone
   DNS name: example-domain.com
 
-* On the "NS" line, column "routing policy": toggle the full cell content  
-  This will list the nameservers associated to our zone
+* On the "NS" line, column "routing policy": toggle the full cell content. This will list the nameservers associated to our zone
 
   ```
   ns-cloud-d1.googledomains.com.
@@ -60,7 +59,8 @@
   ns-cloud-d4.googledomains.com. 
   ```
 
-* On namecheap: Domain > Nameservers > Custom DNS  
+* Buy your domain name on namecheap or other.  
+  On Namecheap: Domain > Nameservers > Custom DNS  
   Update the nameservers with Google's nameservers (and save)
 
 ## Provision the infra
@@ -80,7 +80,7 @@
   - Kubernetes: 6 min
   - Docker registry: <1 min
 
-## Access Cloud SQL locally
+## Access Cloud SQL locally — initialize the database
 
 * Retrieve the credentials
 
@@ -91,37 +91,27 @@
   $ terraform output -raw postgres_connection_json_key | base64 -d > ../env_vars/cloudsql_creds.json
   ```
 
-* Launch the project  
+* Build the image and launch the project  
   This will initialize the database
 
   ``` bash
   $ cd ..
+  $ docker-compose -f docker-compose.full.yml build
   $ docker-compose -f docker-compose.full.yml up
   ```
 
-## Access the docker registry locally
-
-* Retrieve the credentials
-
-  ``` bash
-  $ cd infra
-
-  $ DOCKER_HOSTNAME=$(terraform output -raw docker_registry_hostname)
-  $ echo $DOCKER_HOSTNAME
-  us-west1-docker.pkg.dev
-
-  $ DOCKER_AUTH=$(terraform output -raw docker_registry_write_json_key)
-  $ echo $DOCKER_AUTH
-  ewogICJ0eX...
-
-  $ GOOGLE_APPLICATION_CREDENTIALS=$(echo $DOCKER_AUTH | base64 -d | tr -s '\n' ' ')
-  $ echo $GOOGLE_APPLICATION_CREDENTIALS
-  { "type": "service_account", "project_id": "test-gke-419405", "private_key_id": ...
-  ```
+## Access the docker registry locally — send an image
 
 * Authenticate
 
   ``` bash
+  $ cd infra
+  $ terraform output -raw docker_credentials
+
+  # Copy and paste the output from the previous command
+  $ DOCKER_HOSTNAME='us-west1-docker.pkg.dev';
+  $ GOOGLE_APPLICATION_CREDENTIALS='{  "type": "service_account", ...';
+
   $ echo "$GOOGLE_APPLICATION_CREDENTIALS" | docker login -u _json_key --password-stdin https://$DOCKER_HOSTNAME
   WARNING! Your password will be stored unencrypted in /home/aurelie/.docker/config.json.
   Configure a credential helper to remove this warning. See
@@ -129,43 +119,39 @@
 
   Login Succeeded
   ```
+
+* Tag & push your image
+
   ``` bash
   $ DOCKER_REPOSITORY=$(terraform output -raw docker_registry_repository_url)
   $ echo $DOCKER_REPOSITORY
   us-west1-docker.pkg.dev/test-gke-419405/test-gke-repo-2
-  ```
 
-* Build the image
-
-  ``` bash
-  $ cd ..
-  $ docker-compose -f docker-compose.full.yml build
   $ IMAGE_NAME=django
   ```
-
-* Push your image
-
   ``` bash
   $ docker tag "$IMAGE_NAME:latest" "$DOCKER_REPOSITORY/$IMAGE_NAME:latest"
   $ docker push !$
   ```
 
-## Access Kubernetes locally
+## Access Kubernetes locally — get kubeconfig
 
-* Retrieve the credentials
+* Retrieve the credentials  
+  Retrieve the last generated token:
 
   ``` bash
   $ terraform output -raw kubernetes_kubeconfig > kubeconfig
   ```
 
-  Or
+  Or, if it expired, create a new one:
 
   ``` bash
+  $ cd ..
   $ chmod + x get-kubeconfig.sh
   $ ./get-kubeconfig.sh
   ```
 
-* To use as default:
+* To use this kubeconfig as default:
 
   ``` bash
   $ BACKUP=~/.kube/config.bak.$(date "+%s"); cp ~/.kube/config $BACKUP && echo Saved to $BACKUP
@@ -180,70 +166,84 @@
 
 ## Test a deployment
 
-* Create values.yaml
-
-  ``` bash
-  $ cd infra
-
-  $ LOAD_BALANCER_IP=$(terraform output -raw kubernetes_ingress_ipv4_address)
-  $ DATABASE_CONNECTION_NAME=$(terraform output -raw postgres_connection_name)
-
-  $ cat <<EOT > ../k8s/values.yaml
-  loadBalancerIP: $LOAD_BALANCER_IP
-  databaseConnectionName: $DATABASE_CONNECTION_NAME
-  image: $DOCKER_REPOSITORY/django:latest
-  EOT
-
-  $ cd ..
-  ```
-
-* Create secrets
+* Create CloudSQL secrets
 
   ``` bash
   $ kubectl create secret generic cloudsql --from-env-file=../env_vars/cloudsql.env
   $ kubectl create secret generic cloudsql-oauth-credentials --from-file=credentials.json=../env_vars/cloudsql_creds.json
   ```
 
+* Create Helm values.yaml
+
+  ``` bash
+  $ terraform output -raw helm_values > ../k8s/values.yaml
+
+  $ cat !$
+  loadBalancerGlobalIPAddress: 34.36.76.231
+  loadBalancerGlobalIPName: test-gke-ingress-global-ipv4
+  loadBalancerRootDomain: a-mt.shop
+  loadBalancerManagedCerticateMap: test-gke-ingress-map-entry
+  databaseConnectionName: test-django-419804:us-west1:django-postgres
+  image: us-west1-docker.pkg.dev/test-django-419804/test-gke-repo/django:latest
+  ```
+
 * Deploy the app
 
   ``` bash
+  $ cd ..
+
   $ helm upgrade django ./k8s --install --values=./k8s/values.yaml
+  Release "django" does not exist. Installing it now.
   NAME: django
-  LAST DEPLOYED: Sun Apr  7 16:21:08 2024
+  LAST DEPLOYED: Tue Apr  9 07:41:20 2024
   NAMESPACE: default
   STATUS: deployed
   REVISION: 1
   TEST SUITE: None
-
-  $ kubectl get pod -w
+  ```
+  ``` bash
+  $ kubectl get pod
   NAME                      READY   STATUS    RESTARTS   AGE
-  webapp-5574bd84b6-bfmfw   2/2     Running   0          7s
-  webapp-5574bd84b6-j7nmr   2/2     Running   0          5s
-  webapp-5574bd84b6-jrqx8   2/2     Running   0          9s
+  webapp-58776df459-c5zql   2/2     Running   0          18s
+  webapp-58776df459-ls5pd   2/2     Running   0          18s
+  webapp-58776df459-xrbj9   2/2     Running   0          18s
 
-  $ $ kubectl get svc -w
-  NAME         TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
-  kubernetes   ClusterIP      10.76.176.1    <none>        443/TCP        69s
-  webapp       LoadBalancer   10.76.182.49   <pending>     80:31029/TCP   18s
-  webapp       LoadBalancer   10.76.182.49   35.185.194.193   80:31029/TCP   40s
+  $ kubectl get svc
+  NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+  kubernetes   ClusterIP   10.11.144.1     <none>        443/TCP          49m
+  webapp       NodePort    10.11.154.207   <none>        8080:31727/TCP   33s
+  ```
+  ``` bash
+  $ kubectl get gateway
+  NAME      CLASS                            ADDRESS        PROGRAMMED   AGE
+  gateway   gke-l7-global-external-managed   34.36.76.231   True         80s
 
-  $ curl 35.185.194.193
+  # Give it 2-3 min for the Load Balancer to get up and running
+  $ curl 34.36.76.23
+  curl: (52) Empty reply from server
+
+  $ curl 34.36.76.23
+  curl: (56) Recv failure: Connection reset by peer
+
+  $ curl 34.36.76.23
   {"env": "prod", "debug": false}
   ```
 
 * Check the DNS is working
 
   ``` bash
-  $ ping api.a-mt.shop
-  PING api.a-mt.shop (35.185.194.193) 56(84) bytes of data.
-  64 bytes from 193.194.185.35.bc.googleusercontent.com (35.185.194.193): icmp_seq=1 ttl=101 time=276 ms
-  64 bytes from 193.194.185.35.bc.googleusercontent.com (35.185.194.193): icmp_seq=2 ttl=101 time=196 ms
-  ^C
+  $ ping -c1 api.a-mt.shop
+  PING api.a-mt.shop (34.36.76.231) 56(84) bytes of data.
+  64 bytes from 231.76.36.34.bc.googleusercontent.com (34.36.76.231): icmp_seq=1 ttl=116 time=12.1 ms
+
   --- api.a-mt.shop ping statistics ---
-  2 packets transmitted, 2 received, 0% packet loss, time 1001ms
-  rtt min/avg/max/mdev = 195.542/235.736/275.931/40.194 ms
+  1 packets transmitted, 1 received, 0% packet loss, time 0ms
+  rtt min/avg/max/mdev = 12.067/12.067/12.067/0.000 ms
 
   $ curl api.a-mt.shop
+  {"env": "prod", "debug": false}
+
+  $ curl https://api.a-mt.shop
   {"env": "prod", "debug": false}
   ```
 
@@ -251,4 +251,26 @@
 
   ``` bash
   gcloud artifacts docker images list $DOCKER_REPOSITORY --format="flattened(package)"
+  ```
+
+  To list certificate managers
+
+  ``` bash
+  gcloud certificate-manager certificates list
+  ```
+
+  To list IP addresses
+
+  ``` bash
+  gcloud compute addresses list
+  ```
+
+  To list load balancers:
+
+  ``` bash
+  # HTTPS
+  gcloud compute target-https-proxies list
+
+  # HTTP
+  gcloud compute target-http-proxies list
   ```

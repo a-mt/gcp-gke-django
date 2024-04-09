@@ -1,5 +1,4 @@
-# [START service]
-# Create an external HTTP load balancer.
+# Create an external HTTP load balancer
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,10 +7,9 @@ metadata:
     app: webapp
 spec:
   type: LoadBalancer
-  loadBalancerIP: {{ .Values.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.loadBalancerRegionalIPAddress }}
   ports:
   - port: 80
     targetPort: 8080
   selector:
     app: webapp
-# [END service]
