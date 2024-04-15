@@ -21,4 +21,4 @@ class Command(BaseCommand):
             CourseFactory()
             self.stdout.write('.', ending='')
 
-        self.stdout.write('\nCreated {} courses'.format(n), self.style.SUCCESS)
+        self.stdout.write(f'\nCreated {n} courses', self.style.SUCCESS)

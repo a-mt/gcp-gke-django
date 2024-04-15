@@ -1,7 +1,7 @@
 import logging
 
 from django.http import HttpResponse
-from rest_framework.decorators import api_view, schema
+
 
 logger = logging.getLogger('core')
 
@@ -12,11 +12,13 @@ def ack(request):
     """
     return HttpResponse(status=204)
 
+
 def trigger_error(request):
     """
     Check that an uncaught error is send to sentry
     """
     return 1 / 0
+
 
 def trigger_error_with_extra(request):
     """

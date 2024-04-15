@@ -1,16 +1,10 @@
-from base64 import b64decode
 import json
-import os
 
 from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import override_settings
 from django.urls import reverse
 
-import json
 from rest_framework.test import APITestCase
 
-from django.urls import reverse
 from module.course.factories.course import CourseFactory
 
 
@@ -91,7 +85,7 @@ class CourseApiTest(APITestCase):
 
         # ---
         # Create with wrong token: unauthorized
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token NOP')
+        self.client.credentials(HTTP_AUTHORIZATION='Token NOP')
 
         response = self.client.post(
             reverse('api:course:course-list'),

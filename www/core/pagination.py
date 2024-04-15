@@ -1,6 +1,5 @@
 from rest_framework.pagination import PageNumberPagination as BasePageNumberPagination
 from rest_framework.response import Response
-from collections import OrderedDict
 
 
 class PageNumberPagination(BasePageNumberPagination):
@@ -13,9 +12,9 @@ class PageNumberPagination(BasePageNumberPagination):
     page_size = 10
     max_page_size = 50
 
-    #+----------------------------------------------------
-    #| Response
-    #+----------------------------------------------------
+    # +----------------------------------------------------
+    # | Response
+    # +----------------------------------------------------
 
     def get_paginated_response(self, data):
         return Response({
@@ -35,9 +34,9 @@ class PageNumberPagination(BasePageNumberPagination):
             }
         }
 
-    #+----------------------------------------------------
-    #| Schema
-    #+----------------------------------------------------
+    # +----------------------------------------------------
+    # | Schema
+    # +----------------------------------------------------
 
     def get_paginated_response_schema(self, schema):
         return {

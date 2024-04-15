@@ -28,6 +28,16 @@ output "kubernetes_cluster_ip" {
   sensitive   = false
 }
 
+output "kubernetes_cluster_ca_certificate" {
+  value       = "${google_container_cluster.primary.master_auth.0.cluster_ca_certificate}"
+  sensitive   = true
+}
+
+output "kubernetes_access_token" {
+  value       = data.google_client_config.current.access_token
+  sensitive   = true
+}
+
 # IP
 #output "kubernetes_ingress_regional_ipv4_name" {
 #  value       = "${google_compute_address.gke_ingress_ipv4.name}"

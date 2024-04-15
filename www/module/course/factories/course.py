@@ -3,7 +3,6 @@ from core.utils.tests import factory
 from module.course.models.course import Course
 
 
-
 class CourseFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Course

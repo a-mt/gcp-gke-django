@@ -57,7 +57,6 @@ EMAIL_SUBJECT_PREFIX = os.getenv('EMAIL_PREFIX', '[MyProject] ')
 # ---------------------------------------------------------
 
 DJANGO_APPS = [
-    #'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',

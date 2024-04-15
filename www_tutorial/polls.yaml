@@ -82,7 +82,7 @@ spec:
             mountPath: /etc/ssl/certs
           - name: cloudsql
             mountPath: /cloudsql
-      # [END proxy_container] 
+      # [END proxy_container]
       # [START volumes]
       volumes:
         - name: cloudsql-oauth-credentials
@@ -93,7 +93,7 @@ spec:
             path: /etc/ssl/certs
         - name: cloudsql
           emptyDir: {}
-      # [END volumes]        
+      # [END volumes]
 # [END kubernetes_deployment]
 
 ---

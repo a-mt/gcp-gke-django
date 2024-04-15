@@ -1,8 +1,6 @@
 from rest_framework_json_api.exceptions import exception_handler as base_exception_handler
 from rest_framework import exceptions, status
 
-from django.utils.translation import gettext_lazy as _
-
 
 def exception_handler(exc, context):
     """
@@ -12,7 +10,7 @@ def exception_handler(exc, context):
     """
     if isinstance(exc, (exceptions.NotAuthenticated,
                         exceptions.AuthenticationFailed)):
-        exc.detail = "La force n’est pas avec toi!"
+        # exc.detail = 'Authentication Failed'
         exc.status_code = status.HTTP_401_UNAUTHORIZED
 
     return base_exception_handler(exc, context)

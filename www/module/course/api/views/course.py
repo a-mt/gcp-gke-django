@@ -1,9 +1,5 @@
 from rest_framework.viewsets import GenericViewSet
 from rest_framework import mixins
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.decorators import action, authentication_classes, permission_classes
-from rest_framework.filters import BaseFilterBackend, SearchFilter
 
 from django_filters.filters import CharFilter
 from django_filters.rest_framework import FilterSet, DjangoFilterBackend
@@ -13,8 +9,6 @@ from module.course.api.serializers.course import (
     CourseListSerializer,
 )
 from module.course.models.course import Course
-
-from django.db.models import Q
 
 
 class CourseFilterSet(FilterSet):

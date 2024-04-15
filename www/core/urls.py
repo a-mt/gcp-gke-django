@@ -14,7 +14,6 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-#from django.contrib import admin
 from core.views import about
 from django.conf import settings
 from django.urls import path, include
@@ -25,11 +24,13 @@ urlpatterns = [
     path('api/', include(('core.api.urls', 'api'), namespace='api')),
 ]
 
+# If DEBUG: list subpages, otherwise about page
 if not settings.DEBUG:
     urlpatterns += [
         path('', about),
     ]
 
+# Add Swagger
 try:
     if not settings.SWAGGER_SETTINGS:
         raise AttributeError

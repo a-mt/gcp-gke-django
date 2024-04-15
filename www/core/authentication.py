@@ -1,9 +1,9 @@
 from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
-from django.utils.translation import gettext_lazy as _
 
-from rest_framework.authentication import TokenAuthentication as BaseTokenAuthentication
-from rest_framework.permissions import BasePermission
+from rest_framework.authentication import (
+    TokenAuthentication as BaseTokenAuthentication,
+)
 from rest_framework.exceptions import AuthenticationFailed
 
 

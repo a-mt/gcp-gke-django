@@ -1,6 +1,5 @@
 from django.urls import path
 
-from core.routers import noindex
 from . import views
 
 urlpatterns = [

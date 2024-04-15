@@ -1,7 +1,4 @@
-import datetime
-
 from django.test import TestCase
-from django.db.models import F
 
 from module.course.factories.course import CourseFactory
 
