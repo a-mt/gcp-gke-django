@@ -1,14 +1,3 @@
-output "helm_values" {
-  value = <<-EOT
-  loadBalancerGlobalIPAddress: ${module.kubernetes.kubernetes_ingress_global_ipv4_address}
-  loadBalancerGlobalIPName: ${module.kubernetes.kubernetes_ingress_global_ipv4_name}
-  loadBalancerRootDomain: ${module.dns.root_domain}
-  loadBalancerManagedCerticateMap: ${module.kubernetes.kubernetes_ingress_certificate_map_name}
-  databaseConnectionName: ${module.postgres.postgres_connection_name}
-  image: ${module.docker_registry.docker_registry_repository_url}/django:latest
-  EOT
-  sensitive = true
-}
 
 output "postgres_env_vars" {
   value = <<-EOT
@@ -20,11 +9,29 @@ output "postgres_env_vars" {
   sensitive = true
 }
 
-output "docker_credentials" {
+output "cicd_docker_credentials" {
   value = <<-EOT
-  DOCKER_HOSTNAME='${module.docker_registry.docker_registry_hostname}';
-  GOOGLE_APPLICATION_CREDENTIALS='${replace(base64decode(module.docker_registry.docker_registry_write_json_key), "\n", "")}';
-  echo "$GOOGLE_APPLICATION_CREDENTIALS" | docker login -u _json_key --password-stdin https://$DOCKER_HOSTNAME
+  DOCKER_REGISTRY='${module.docker_registry.docker_registry_hostname}';
+  DOCKER_CREDENTIALS='${replace(base64decode(module.docker_registry.docker_registry_write_json_key), "\n", "")}';
+  echo "$DOCKER_CREDENTIALS" | docker login -u _json_key --password-stdin https://$DOCKER_REGISTRY
+  EOT
+  sensitive = true
+}
+
+output "kubernetes_kubeconfig" {
+  value       = module.kubernetes.kubernetes_kubeconfig
+  sensitive   = true
+  description = "Gives us Terraform's access token, lasts 1h"
+}
+
+output "helm_values" {
+  value = <<-EOT
+  loadBalancerGlobalIPAddress: ${module.kubernetes.kubernetes_ingress_global_ipv4_address}
+  loadBalancerGlobalIPName: ${module.kubernetes.kubernetes_ingress_global_ipv4_name}
+  loadBalancerRootDomain: ${module.dns.root_domain}
+  loadBalancerManagedCerticateMap: ${module.kubernetes.kubernetes_ingress_certificate_map_name}
+  databaseConnectionName: ${module.postgres.postgres_connection_name}
+  image: ${module.docker_registry.docker_registry_hostname}/${module.docker_registry.docker_registry_repository}/django:latest
   EOT
   sensitive = true
 }
@@ -61,12 +68,6 @@ output "postgres_database_password" {
 #| KUBERNETES
 #+-------------------------------------
 
-# Connection
-output "kubernetes_kubeconfig" {
-  value     = module.kubernetes.kubernetes_kubeconfig
-  sensitive = true
-}
-
 # Utils
 output "kubernetes_cluster_name" {
   value     = module.kubernetes.kubernetes_cluster_name
@@ -75,6 +76,10 @@ output "kubernetes_cluster_name" {
 output "kubernetes_cluster_ip" {
   value     = module.kubernetes.kubernetes_cluster_ip
   sensitive = false
+}
+output "kubernetes_cluster_ca_certificate" {
+  value     = module.kubernetes.kubernetes_cluster_ca_certificate
+  sensitive = true
 }
 
 # Ingress/gateway settings
@@ -123,7 +128,7 @@ output "docker_registry_hostname" {
   value     = module.docker_registry.docker_registry_hostname
   sensitive = false
 }
-output "docker_registry_repository_url" {
-  value     = module.docker_registry.docker_registry_repository_url
+output "docker_registry_repository" {
+  value     = module.docker_registry.docker_registry_repository
   sensitive = false
 }

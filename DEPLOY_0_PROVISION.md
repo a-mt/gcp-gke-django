@@ -1,5 +1,16 @@
 
-## GCP Setup
+## Setup GCP
+
+* Create a project + service account via the [console](https://console.cloud.google.com/)
+* Switch to it in your CLI
+
+  ```
+  $ gcloud init
+
+  $ gcloud config get project
+  Your active configuration is: [test-gke]
+  django-gke-420513
+  ```
 
 * Enable the following APIs:
 
@@ -63,6 +74,24 @@
   On Namecheap: Domain > Nameservers > Custom DNS  
   Update the nameservers with Google's nameservers (and save)
 
+## Setup Terraform Cloud
+
+* Go to [Terraform Cloud](https://app.terraform.io/)
+* Create a CLI-driven workspace
+
+  ```
+  test-django-dev
+  ```
+
+* Add the following variables:
+
+  ```
+  gcp_credentials
+  gcp_project_id
+  gcp_project_name
+  gcp_project_number
+  ```
+
 ## Provision the infra
  
 * Launch terraform
@@ -79,6 +108,8 @@
   - Cloud SQL: 10 min  
   - Kubernetes: 6 min
   - Docker registry: <1 min
+
+---
 
 ## Access Cloud SQL locally — initialize the database
 
@@ -106,13 +137,13 @@
 
   ``` bash
   $ cd infra
-  $ terraform output -raw docker_credentials
+  $ terraform output -raw cicd_docker_credentials
 
   # Copy and paste the output from the previous command
-  $ DOCKER_HOSTNAME='us-west1-docker.pkg.dev';
-  $ GOOGLE_APPLICATION_CREDENTIALS='{  "type": "service_account", ...';
+  $ DOCKER_REGISTRY='us-west1-docker.pkg.dev';
+  $ DOCKER_CREDENTIALS='{  "type": "service_account", ...';
 
-  $ echo "$GOOGLE_APPLICATION_CREDENTIALS" | docker login -u _json_key --password-stdin https://$DOCKER_HOSTNAME
+  $ echo "$DOCKER_CREDENTIALS" | docker login -u _json_key --password-stdin https://$DOCKER_REGISTRY
   WARNING! Your password will be stored unencrypted in /home/aurelie/.docker/config.json.
   Configure a credential helper to remove this warning. See
   https://docs.docker.com/engine/reference/commandline/login/#credentials-store
@@ -123,14 +154,14 @@
 * Tag & push your image
 
   ``` bash
-  $ DOCKER_REPOSITORY=$(terraform output -raw docker_registry_repository_url)
+  $ DOCKER_REPOSITORY=$(terraform output -raw docker_registry_repository)
   $ echo $DOCKER_REPOSITORY
-  us-west1-docker.pkg.dev/test-gke-419405/test-gke-repo-2
+  test-gke-419405/test-gke-repo-2
 
   $ IMAGE_NAME=django
   ```
   ``` bash
-  $ docker tag "$IMAGE_NAME:latest" "$DOCKER_REPOSITORY/$IMAGE_NAME:latest"
+  $ docker tag "$IMAGE_NAME:latest" "$DOCKER_REGISTRY/$DOCKER_REPOSITORY/$IMAGE_NAME:latest"
   $ docker push !$
   ```
 
@@ -164,7 +195,7 @@
   $ kubectl get nodes
   ```
 
-## Test a deployment
+## Launch the first deployment
 
 * Create CloudSQL secrets
 
@@ -250,7 +281,7 @@
 * Note: to list images
 
   ``` bash
-  gcloud artifacts docker images list $DOCKER_REPOSITORY --format="flattened(package)"
+  gcloud artifacts docker images list $DOCKER_REGISTRY/$DOCKER_REPOSITORY --format="flattened(package)"
   ```
 
   To list certificate managers
@@ -274,3 +305,49 @@
   # HTTP
   gcloud compute target-http-proxies list
   ```
+
+## Test access with our CI/CD service account
+
+``` bash
+# Retrieve values
+$ KUBE_CLUSTER="https://$(terraform output -raw kubernetes_cluster_ip)";
+$ echo $KUBE_CLUSTER
+https://35.247.74.19
+
+$ KUBE_CA_DATA=$(terraform output -raw kubernetes_cluster_ca_certificate | base64 -d);
+$ echo "$KUBE_CA_DATA"
+-----BEGIN CERTIFICATE-----
+MIIELTCCApWgAwIBAgIRA...
+
+$ KUBE_TOKEN=$(kubectl get secret cicd-token -o jsonpath='{ .data.token }' | base64 -d);
+$ echo $KUBE_TOKEN
+eyJhbGciOiJSU...
+
+$ KUBE_CA=/tmp/ca
+$ echo "$KUBE_CA_DATA" > $KUBE_CA
+
+# Define context
+$ kubectl config set-cluster gke --server="$KUBE_CLUSTER" --embed-certs --certificate-authority $KUBE_CA
+$ kubectl config set-credentials pipeline --token="$KUBE_TOKEN"
+$ kubectl config set-context primary --user=pipeline --cluster=gke
+
+# Switch context
+$ kubectl config current-context
+test-gke
+$ kubectl config use-context primary
+Switched to context "primary".
+
+# Check access
+$ kubectl get pod
+NAME                      READY   STATUS    RESTARTS   AGE
+webapp-76c94cbbf7-gnxlc   2/2     Running   0          14m
+webapp-76c94cbbf7-hxmc4   2/2     Running   0          14m
+webapp-76c94cbbf7-wmssx   2/2     Running   0          14m
+$ kubectl delete pod webapp-76c94cbbf7-gnxlc
+Error from server (Forbidden): pods "webapp-76c94cbbf7-gnxlc" is forbidden: User "system:serviceaccount:default:cicd-user" cannot delete resource "pods" in API group "" in the namespace "default"
+
+$ kubectl rollout history deploy/webapp
+deployment.apps/webapp 
+REVISION  CHANGE-CAUSE
+1         <none>
+```

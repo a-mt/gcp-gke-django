@@ -128,3 +128,30 @@ resource "google_certificate_manager_certificate_map" "gke_ingress_certificate_m
     terraform = true
   }
 }
+
+#+-------------------------------------
+#| SERVICE ACCOUNT
+#+-------------------------------------
+
+resource "google_service_account" "cicd_sa" {
+  account_id   = "${var.cluster_name}-cicd-pipeline"
+  display_name = "Service Account to deploy new images"
+}
+
+resource "google_project_iam_member" "cicd_sa_roles" {
+
+  # https://docs.github.com/en/actions/deployment/deploying-to-your-cloud-provider/deploying-to-google-kubernetes-engine#configuring-a-service-account-and-storing-its-credentials
+  for_each = toset([
+    "roles/container.admin",
+    "roles/storage.admin",
+    "roles/container.clusterViewer",
+  ])
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.cicd_sa.email}"
+  project = google_container_cluster.primary.project
+}
+
+resource "google_service_account_key" "cicd_sa_json_key" {
+  service_account_id = google_service_account.cicd_sa.name
+  public_key_type    = "TYPE_X509_PEM_FILE"
+}

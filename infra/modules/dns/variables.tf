@@ -2,7 +2,6 @@
 variable "dns_zone_name" {
   type        = string
   description = "Name of your zone in Cloud DNS"
-  default     = "gke-zone"
 }
 
 variable "ingress_ip" {

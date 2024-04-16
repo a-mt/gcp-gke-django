@@ -80,4 +80,5 @@ After fixing the files, add them to the staged diffs and commit.
 
 ## Deployment
 
-[Provision the infra](DEPLOY_0_PROVISION.md)
+- [Provision the infra](DEPLOY_0_PROVISION.md)
+- [Set up Gtilab](DEPLOY_1_GITLAB.md)

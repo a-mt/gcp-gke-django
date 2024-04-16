@@ -1,0 +1,175 @@
+stages:
+  - build-base
+  - lint
+  - test
+  - build
+  - deploy
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev"
+      variables:
+        CI_PIPELINE: "dev"
+
+#+-------------------------------------
+#| TEMPLATES
+#+-------------------------------------
+
+# Task picked up by runners allowed to build with Docker
+.docker:
+  image:
+    name: docker:latest
+    pull_policy: if-not-present
+  tags:
+    - docker
+  services:
+    - docker:dind
+
+.python:
+  image:
+    name: python:3.12.2
+    pull_policy: if-not-present
+
+#+-------------------------------------
+#| CI
+#+-------------------------------------
+
+# Build base image + set CI_IMAGE_BASE_VERSION var the the next jobs
+build-base:
+  stage: build-base
+  extends: .docker
+  script:
+
+    # Compute $CI_IMAGE_BASE_VERSION + save it in build.env
+    - CI_IMAGE_BASE_VERSION=$(sha1sum docker.base.Dockerfile requirements.txt | sha1sum | head -c 40)
+    - echo "CI_IMAGE_BASE_VERSION=$CI_IMAGE_BASE_VERSION" >> build.env
+
+    # Check if the image already exists in the registry
+    - TAG_VERSION="$CI_REGISTRY_IMAGE:$CI_IMAGE_BASE_VERSION"
+    - TAG_LATEST="$CI_REGISTRY_IMAGE:latest"
+
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker manifest inspect "$TAG_VERSION" > /dev/null && TAG_LATEST=""
+
+    # It doesn't: build and push it
+    - >
+      [ -n "$TAG_LATEST" ] && {
+      docker build
+      --file docker.base.Dockerfile
+      --build-arg CI_COMMIT_SHA="$CI_COMMIT_SHA"
+      --build-arg CI_COMMIT_TAG="$CI_COMMIT_TAG"
+      --build-arg CI_COMMIT_BRANCH="$CI_COMMIT_BRANCH"
+      -t "$TAG_VERSION"
+      -t "$TAG_LATEST" . &&
+      docker push "$TAG_VERSION" &&
+      docker push "$TAG_LATEST" &&
+      echo "Image $TAG_VERSION build"
+      ;} || echo "Image $TAG_VERSION already exists"
+
+  artifacts:
+    reports:
+      dotenv: build.env
+
+# Code linting
+pre-commit:
+  stage: lint
+  extends: .python
+  variables:
+    PRE_COMMIT_HOME: $CI_PROJECT_DIR/.cache/pre-commit
+  cache:
+    key: pre-commit
+    policy: pull-push
+    paths:
+      - ${PRE_COMMIT_HOME}
+  script:
+    - echo "Running tests for pipeline $CI_PIPELINE"
+    - pip install --upgrade pre-commit
+    - pre-commit run -v --all-files --show-diff-on-failure
+  rules:
+    - exists:
+      - .pre-commit-config.yaml
+  allow_failure: false
+
+# Unit tests
+test:
+  stage: test
+  image:
+    name: "$CI_REGISTRY_IMAGE:$CI_IMAGE_BASE_VERSION"
+    pull_policy: if-not-present
+    entrypoint: [""]
+  services:
+    - name: postgres:15
+      alias: postgres-test
+  variables:
+    # Services.postgres variables
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    POSTGRES_DB: test
+    # App variables
+    DATABASE_HOST: postgres-test
+    DATABASE_PORT: 5432
+    DATABASE_NAME: test
+    DATABASE_USERNAME: test
+    DATABASE_PASSWORD: test
+  script:
+    - cd www
+    - python manage.py test
+  interruptible: true
+  allow_failure: false
+
+#+-------------------------------------
+#| CD
+#+-------------------------------------
+
+# Build app (on top of base)
+build:
+  stage: build
+  extends: .docker
+  variables:
+    FROM_BASE: "$CI_REGISTRY_IMAGE:$CI_IMAGE_BASE_VERSION"
+    DESTINATION: "$DOCKER_REGISTRY/$DOCKER_REPOSITORY/$CI_PIPELINE/django"
+  script:
+    - echo "Building $TAG_VERSION"
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+    # Build image
+    - sed -i "s%./docker.base.Dockerfile%$FROM_BASE%" docker.full.Dockerfile
+    - >
+      docker build
+      --file docker.full.Dockerfile
+      --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA
+      --build-arg CI_COMMIT_TAG=$CI_COMMIT_TAG
+      --build-arg CI_COMMIT_BRANCH=$CI_COMMIT_BRANCH
+      --label "cicd.pipeline=$CI_PIPELINE"
+      --label "cicd.image=$CI_IMAGE_BASE_VERSION"
+      --label "cicd.ci_commit_sha=$CI_COMMIT_SHA"
+      -t "$DESTINATION:$CI_COMMIT_SHA"
+      -t "$DESTINATION:latest" .
+
+    # Push to Google's registry
+    - cat "$DOCKER_CREDENTIALS" | docker login -u _json_key --password-stdin https://$DOCKER_REGISTRY
+
+    - docker push $DESTINATION:$CI_COMMIT_SHA
+    - docker push $DESTINATION:latest
+  rules:
+    - exists:
+      - docker.full.Dockerfile
+  interruptible: true
+
+# Deploy the new image
+deploy:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:latest
+    pull_policy: if-not-present
+    entrypoint: [""]
+  variables:
+    DESTINATION: "$DOCKER_REGISTRY/$DOCKER_REPOSITORY/$CI_PIPELINE/django"
+  before_script:
+    - kubectl config set-cluster gke --server="$KUBE_CLUSTER" --embed-certs --certificate-authority "$KUBE_CA"
+    - kubectl config set-credentials pipeline --token="$KUBE_TOKEN"
+    - kubectl config set-context primary --user=pipeline --cluster=gke
+    - kubectl config use-context primary
+  script:
+    - kubectl set image deploy/webapp api="$DESTINATION:$CI_COMMIT_SHA"
+    - kubectl annotate deploy webapp kubernetes.io/change-cause="version change to $CI_PIPELINE/django:$CI_COMMIT_SHA" --overwrite=true

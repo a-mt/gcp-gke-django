@@ -39,6 +39,7 @@ Icon?
 *.bak/*
 kubeconfig
 .github
+runner-*
 
 # GitKeep
 !/**/.gitkeep

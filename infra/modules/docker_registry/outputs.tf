@@ -12,10 +12,9 @@ output "docker_registry_hostname" {
   sensitive    = false
 }
 
-output "docker_registry_repository_url" {
+output "docker_registry_repository" {
   description  = "URL of the repository — ie REGION-docker.pkg.dev/PROJECT_ID/REPO_NAME"
   value        = join("/", [
-    local.docker_registry_repository_hostname,
     local.docker_registry_repository_project,
     local.docker_registry_repository_name,
   ])
