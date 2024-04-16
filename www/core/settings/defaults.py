@@ -208,4 +208,3 @@ STATIC_URL = 'static/'
 # ---------------------------------------------------------
 
 COMMIT_SHA = os.getenv('COMMIT_SHA', 'latest')
-COMMIT_TAG = os.getenv('COMMIT_TAG', '') or COMMIT_SHA

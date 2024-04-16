@@ -3,11 +3,9 @@ FROM ./docker.base.Dockerfile
 
 # possible Dockerfile arguments
 ARG CI_COMMIT_BRANCH='dev'
-ARG CI_COMMIT_TAG='latest'
 ARG CI_COMMIT_SHA='latest'
 
 ENV COMMIT_BRANCH=$CI_COMMIT_BRANCH
-ENV COMMIT_TAG=$CI_COMMIT_TAG
 ENV COMMIT_SHA=$CI_COMMIT_SHA
 
 # install app dependencies
