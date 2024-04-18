@@ -100,6 +100,7 @@ test:
     - name: postgres:15
       alias: postgres-test
   variables:
+    CI_PIPELINE: 1
     # Services.postgres variables
     POSTGRES_USER: test
     POSTGRES_PASSWORD: test
@@ -128,7 +129,7 @@ build:
     FROM_BASE: "$CI_REGISTRY_IMAGE:$CI_IMAGE_BASE_VERSION"
     DESTINATION: "$DOCKER_REGISTRY/$DOCKER_REPOSITORY/$CI_PIPELINE/django"
   script:
-    - echo "Building $TAG_VERSION"
+    - echo "Building $DESTINATION"
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
 
     # Build image

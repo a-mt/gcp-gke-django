@@ -1,7 +1,8 @@
+Configuration file: .gitlab-ci.yml
 
-## Setup Gitlb
+## Setup Gitlab
 
-- Activate the CI/CD menu  
+- Enable the CI/CD menu  
   Settings > General > Visibility, project features, permissions
 
   - Check CI/CD

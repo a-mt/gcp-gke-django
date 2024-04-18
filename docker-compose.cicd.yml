@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  tests:
+    image: django-base
+    build:
+      context: .
+      dockerfile: docker.base.Dockerfile
+    restart: "no"
+    volumes:
+      - ./www:/srv/www:delegated
+    environment:
+      CI_PIPELINE: 1
+    command:
+      - ./manage.py
+      - test
+    platform: linux/amd64

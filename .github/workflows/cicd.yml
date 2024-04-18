@@ -1,0 +1,142 @@
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - master
+
+# https://docs.github.com/en/actions/learn-github-actions/contexts
+env:
+  CI_REGISTRY_IMAGE: "${{ vars.DOCKER_REGISTRY }}/${{ vars.DOCKER_REPOSITORY }}/${{ github.event.repository.name }}"
+  CI_COMMIT_SHA: "${{ github.sha }}"
+  CI_COMMIT_BRANCH: "${{ github.base_ref || github.head_ref || github.ref_name}}"
+
+jobs:
+  cicd:
+    name: CI/CD
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash
+    steps:
+
+    # Setup workflow
+    - name: Set environment for branch
+      run: |
+        if [[ $GITHUB_REF_NAME == 'master' ]]; then
+            echo "CI_PIPELINE=dev" >> "$GITHUB_ENV"
+        fi
+        echo "JOB_CONTAINER_NAME=$HOSTNAME" >> "$GITHUB_ENV"
+
+    # Copy codebase into runner
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    # Build base image
+    - name: Build base image
+      run: |
+        # Compute $VERSION
+        VERSION=$(sha1sum docker.base.Dockerfile requirements.txt | sha1sum | head -c 40)
+        DESTINATION="$CI_REGISTRY_IMAGE"
+        DESTINATION_VERSION="$DESTINATION:$VERSION"
+
+        echo "CI_IMAGE_VERSION=$VERSION" >> "$GITHUB_ENV"
+        echo "CI_IMAGE_PATH=$DESTINATION_VERSION" >> "$GITHUB_ENV"
+
+        # Check if the image already exists in the registry
+        echo '${{ secrets.DOCKER_CREDENTIALS }}' | docker login -u _json_key --password-stdin https://${{ vars.DOCKER_REGISTRY }}
+
+        TO_CREATE=true
+        docker manifest inspect "$DESTINATION_VERSION" > /dev/null && TO_CREATE=false
+
+        # It doesn't: build and push it
+        if $TO_CREATE; then
+          docker build \
+          --file docker.base.Dockerfile \
+          --build-arg CI_COMMIT_SHA="$CI_COMMIT_SHA" \
+          --build-arg CI_COMMIT_BRANCH="$CI_COMMIT_BRANCH" \
+          -t "$DESTINATION_VERSION" \
+          -t "$DESTINATION:latest" . && \
+          docker push "$DESTINATION_VERSION" && \
+          docker push "$DESTINATION:latest" && \
+          echo "Image $DESTINATION_VERSION build"
+        else
+          echo "Image $DESTINATION_VERSION already exists"
+        fi
+
+    # Lint
+    - name: Pre-commit
+      uses: addnab/docker-run-action@v3
+      with:
+        image: ${{ env.CI_IMAGE_PATH }}
+        options: |
+          --volumes-from=${{ env.JOB_CONTAINER_NAME }}
+          --workdir=${{ github.workspace }}
+        run: |
+          apt-get update -qq && apt-get install -qq -y git
+          pip install --quiet --upgrade pre-commit
+          git config --global --add safe.directory `pwd`
+
+          echo "Running tests for pipeline $CI_PIPELINE"
+          pre-commit run -v --all-files --show-diff-on-failure
+
+    # Test
+    - name: Unit tests
+      uses: addnab/docker-run-action@v3
+      with:
+        image: ${{ env.CI_IMAGE_PATH }}
+        options: |
+          --volumes-from=${{ env.JOB_CONTAINER_NAME }}
+          --workdir=${{ github.workspace }}
+          -e CI_PIPELINE=1
+        run: |
+          cp -R www /_run
+          cd /_run
+          python manage.py test
+
+    # Build app (on top of base)
+    - name: Build full image
+      run: |
+        BASE_VERSION="$CI_IMAGE_PATH"
+        DESTINATION="$CI_REGISTRY_IMAGE/$CI_PIPELINE"
+        DESTINATION_VERSION="$DESTINATION:$CI_COMMIT_SHA"
+
+        echo "Building $DESTINATION_VERSION"
+        echo "CI_IMAGE_FULL_VERSION=$DESTINATION_VERSION" >> "$GITHUB_ENV"
+
+        # Build image
+        sed -i "s%./docker.base.Dockerfile%$BASE_VERSION%" docker.full.Dockerfile
+
+        docker build \
+        --file docker.full.Dockerfile \
+        --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA \
+        --build-arg CI_COMMIT_BRANCH=$CI_COMMIT_BRANCH \
+        --label "cicd.pipeline=$CI_PIPELINE" \
+        --label "cicd.image=$CI_IMAGE_VERSION" \
+        --label "cicd.ci_commit_sha=$CI_COMMIT_SHA" \
+        -t "$DESTINATION_VERSION" \
+        -t "$DESTINATION:latest" . && \
+        docker push $DESTINATION_VERSION && \
+        docker push $DESTINATION:latest
+
+    # Deploy the new image
+    - name: Deploy
+      uses: addnab/docker-run-action@v3
+      with:
+        image: bitnami/kubectl:latest
+        entrypoint: ""
+        run: |
+          # Set credentials
+          KUBE_CA=/tmp/kube_ca; echo '${{ secrets.KUBE_CA_DATA }}' > "$KUBE_CA"
+
+          kubectl config set-cluster gke --server='${{ vars.KUBE_CLUSTER }}' --embed-certs --certificate-authority "$KUBE_CA"
+          kubectl config set-credentials pipeline --token='${{ secrets.KUBE_TOKEN }}'
+          kubectl config set-context primary --user=pipeline --cluster=gke
+          kubectl config use-context primary
+
+          # Update image
+          kubectl set image deploy/webapp api="${{ env.CI_IMAGE_FULL_VERSION }}"
+
+          message="version change to ${{ env.CI_PIPELINE }}:${{ env.CI_COMMIT_SHA }}"
+          kubectl annotate deploy webapp kubernetes.io/change-cause="$message" --overwrite=true

@@ -81,4 +81,7 @@ After fixing the files, add them to the staged diffs and commit.
 ## Deployment
 
 - [Provision the infra](DEPLOY_0_PROVISION.md)
-- [Set up Gitlab CI/CD](DEPLOY_1_GITLAB.md)
+
+- Set up a CI/CD pipeline
+  - [On Gitlab](DEPLOY_1_GITLAB.md)
+  - [On Github](DEPLOY_1_GITHUB.md)

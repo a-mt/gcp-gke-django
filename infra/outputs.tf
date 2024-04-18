@@ -12,6 +12,7 @@ output "postgres_env_vars" {
 output "cicd_docker_credentials" {
   value = <<-EOT
   DOCKER_REGISTRY='${module.docker_registry.docker_registry_hostname}';
+  DOCKER_REPOSITORY='${module.docker_registry.docker_registry_repository}';
   DOCKER_CREDENTIALS='${replace(base64decode(module.docker_registry.docker_registry_write_json_key), "\n", "")}';
   echo "$DOCKER_CREDENTIALS" | docker login -u _json_key --password-stdin https://$DOCKER_REGISTRY
   EOT

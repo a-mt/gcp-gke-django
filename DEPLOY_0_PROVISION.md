@@ -141,6 +141,7 @@
 
   # Copy and paste the output from the previous command
   $ DOCKER_REGISTRY='us-west1-docker.pkg.dev';
+  $ DOCKER_REPOSITORY='test-gke-419405/test-gke-repo'
   $ DOCKER_CREDENTIALS='{  "type": "service_account", ...';
 
   $ echo "$DOCKER_CREDENTIALS" | docker login -u _json_key --password-stdin https://$DOCKER_REGISTRY
@@ -154,10 +155,6 @@
 * Tag & push your image
 
   ``` bash
-  $ DOCKER_REPOSITORY=$(terraform output -raw docker_registry_repository)
-  $ echo $DOCKER_REPOSITORY
-  test-gke-419405/test-gke-repo-2
-
   $ IMAGE_NAME=django
   ```
   ``` bash
@@ -250,6 +247,7 @@
   gateway   gke-l7-global-external-managed   34.36.76.231   True         80s
 
   # Give it 2-3 min for the Load Balancer to get up and running
+  # To see what's going on: kubectl events
   $ curl 34.36.76.23
   curl: (52) Empty reply from server
 
