@@ -4,7 +4,7 @@ name: CI/CD
 on:
   push:
     branches:
-      - master
+      - dev
 
 # https://docs.github.com/en/actions/learn-github-actions/contexts
 env:
@@ -24,7 +24,7 @@ jobs:
     # Setup workflow
     - name: Set environment for branch
       run: |
-        if [[ $GITHUB_REF_NAME == 'master' ]]; then
+        if [[ $GITHUB_REF_NAME == 'dev' ]]; then
             echo "CI_PIPELINE=dev" >> "$GITHUB_ENV"
         fi
         echo "JOB_CONTAINER_NAME=$HOSTNAME" >> "$GITHUB_ENV"
