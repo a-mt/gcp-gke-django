@@ -1,4 +1,4 @@
-loadBalancerGlobalIPAddress: 34.160.56.156
+loadBalancerGlobalIPAddress: 34.83.154.182
 loadBalancerGlobalIPName: test-gke-ingress-global-ipv4
 loadBalancerRootDomain: a-mt.shop
 loadBalancerManagedCerticateMap: test-gke-ingress-map-entry

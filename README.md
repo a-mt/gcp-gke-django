@@ -85,3 +85,4 @@ After fixing the files, add them to the staged diffs and commit.
 - Set up a CI/CD pipeline
   - [On Gitlab](DEPLOY_1_GITLAB.md)
   - [On Github](DEPLOY_1_GITHUB.md)
+  - [On Jenkins](DEPLOY_1_JENKINS.md)

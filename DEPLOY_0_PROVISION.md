@@ -348,4 +348,11 @@ $ kubectl rollout history deploy/webapp
 deployment.apps/webapp 
 REVISION  CHANGE-CAUSE
 1         <none>
+
+$ kubectl rollout history deploy/webapp -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}{"\t"}{.metadata.creationTimestamp}{"\t"}{.metadata.annotations.kubernetes\.io/change-cause}{"\n"}'
+
+$ kubectl get rs --sort-by '{.metadata.creationTimestamp}' -o custom-columns=\
+'REVISION:.metadata.annotations.deployment\.kubernetes\.io/revision,'\
+'CREATION:.metadata.creationTimestamp,'\
+'CHANGE-CAUSE:.metadata.annotations.kubernetes\.io/change-cause'
 ```
